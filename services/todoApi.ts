@@ -9,24 +9,19 @@ export type Todo = {
   userId: number;
 };
 
-type TodosResponse = {
-  todos: Todo[];
-  total: number;
-  skip: number;
-  limit: number;
-};
-
+// GET
 export const getTodos = async (): Promise<Todo[]> => {
-  const response = await axios.get<TodosResponse>(`${BASE_URL}/todos`);
-  return response.data.todos;
+  const res = await axios.get(`${BASE_URL}/todos`);
+  return res.data.todos;
 };
 
-export const addTodo = async (newTodo: string) => {
-  const response = await axios.post(`${BASE_URL}/todos/add`, {
-    todo: newTodo,
+// ADD (API فقط للتجربة، لكن رح نستخدم الكاش)
+export const addTodoApi = async (text: string): Promise<Todo> => {
+  const res = await axios.post(`${BASE_URL}/todos/add`, {
+    todo: text,
     completed: false,
     userId: 1,
   });
 
-  return response.data;
+  return res.data;
 };

@@ -1,115 +1,66 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { useState } from "react";
+import { View, TextInput, Pressable, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Todo } from "../services/todoApi";
 
-const PRIMARY = "#2563EB";
+export default function AddTask() {
+  const [text, setText] = useState("");
+  const qc = useQueryClient();
 
-export default function AddTaskScreen() {
-  const [task, setTask] = useState("");
-  const [loading, setLoading] = useState(false);
+  const handleAdd = () => {
+    if (!text.trim()) return;
 
-  const queryClient = useQueryClient();
-
-  const handleAdd = async () => {
-    if (!task.trim()) return;
-
-    setLoading(true);
-
-    const newTodo = {
+    const newTodo: Todo = {
       id: Date.now(),
-      todo: task,
+      todo: text,
       completed: false,
-      userId: Math.floor(Math.random() * 10) + 1
+      userId: 1,
     };
 
-    queryClient.setQueryData(["todos"], (old: any = []) => [
-      newTodo,
-      ...old,
-    ]);
+    const old = qc.getQueryData<Todo[]>(["todos"]) || [];
 
-    setLoading(false);
-    setTask("");
+    qc.setQueryData(["todos"], [newTodo, ...old]); // 🔥 أهم سطر
 
+    setText("");
     router.back();
   };
 
   return (
       <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>📝 Add New Task</Text>
+        <Text style={styles.title}>Add Task</Text>
 
-        <View style={styles.card}>
-          <TextInput
-              placeholder="Write your task..."
-              value={task}
-              onChangeText={setTask}
-              style={styles.input}
-              placeholderTextColor="#9CA3AF"
-          />
+        <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder="Enter task"
+            style={styles.input}
+        />
 
-          <Pressable
-              style={[
-                styles.button,
-                (!task.trim() || loading) && styles.disabled,
-              ]}
-              onPress={handleAdd}
-              disabled={!task.trim() || loading}
-          >
-            <Text style={styles.buttonText}>
-              {loading ? "Adding..." : "Add Task"}
-            </Text>
-          </Pressable>
-        </View>
+        <Pressable style={styles.button} onPress={handleAdd}>
+          <Text style={styles.buttonText}>Add</Text>
+        </Pressable>
       </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#F8FAFC",
-  },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "800",
-    marginBottom: 20,
-    color: "#111827",
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-
+  container: { flex: 1, padding: 20, backgroundColor: "#F8FAFC" },
+  title: { fontSize: 26, fontWeight: "800", marginBottom: 20 },
   input: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#fff",
     padding: 14,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E5E7EB",
-    marginBottom: 14,
-    color: "#111827",
   },
-
   button: {
-    backgroundColor: PRIMARY,
-    padding: 14,
+    marginTop: 15,
+    backgroundColor: "#6D5DF6",
+    padding: 15,
     borderRadius: 14,
     alignItems: "center",
   },
-
-  buttonText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
-  },
-
-  disabled: {
-    opacity: 0.5,
-  },
+  buttonText: { color: "#fff", fontWeight: "800" },
 });
