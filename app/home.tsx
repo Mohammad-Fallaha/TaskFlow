@@ -20,9 +20,14 @@ export default function HomeScreen() {
   const [search, setSearch] = useState("");
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["todos"],
-    queryFn: getTodos,
-  });
+  queryKey: ["todos"],
+  queryFn: getTodos,
+  staleTime: Infinity,
+  gcTime: Infinity,
+  refetchOnMount: false,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+});
 
   const todos = data ?? [];
 
