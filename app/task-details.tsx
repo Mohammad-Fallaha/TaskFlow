@@ -1,23 +1,19 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { Todo } from "../services/todoApi";
-import { useState, useEffect } from "react";
-
-const PRIMARY = "#2563EB";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getTodos, Todo } from "../services/todoApi";
 
 export default function TaskDetailsScreen() {
     const { id } = useLocalSearchParams();
-    const queryClient = useQueryClient();
+    const qc = useQueryClient();
 
-    const [todo, setTodo] = useState<Todo | null>(null);
+    const { data } = useQuery({
+        queryKey: ["todos"],
+        queryFn: getTodos,
+    });
 
-    useEffect(() => {
-        const todos = queryClient.getQueryData<Todo[]>(["todos"]) || [];
-        const found = todos.find((item) => item.id === Number(id));
-        setTodo(found || null);
-    }, [id]);
+    const todo = data?.find((t) => t.id === Number(id));
 
     if (!todo) {
         return (
@@ -27,29 +23,32 @@ export default function TaskDetailsScreen() {
         );
     }
 
+    // 🔥 Toggle Status Button Logic
     const toggleStatus = () => {
-        const todos = queryClient.getQueryData<Todo[]>(["todos"]) || [];
+        const todos = qc.getQueryData<Todo[]>(["todos"]) || [];
 
-        const updated = todos.map((item) =>
-            item.id === todo.id
-                ? { ...item, completed: !item.completed }
-                : item
+        const updated = todos.map((t) =>
+            t.id === todo.id
+                ? { ...t, completed: !t.completed }
+                : t
         );
 
-        queryClient.setQueryData(["todos"], updated);
-
-        setTodo((prev) =>
-            prev ? { ...prev, completed: !prev.completed } : prev
-        );
+        qc.setQueryData(["todos"], updated);
     };
 
     return (
         <SafeAreaView style={styles.container}>
             <Text style={styles.title}>Task Details</Text>
 
+            {/* Card */}
             <View style={styles.card}>
                 <Text style={styles.label}>Task</Text>
-                <Text style={[styles.taskText, todo.completed && styles.completedTask]}>
+                <Text
+                    style={[
+                        styles.task,
+                        todo.completed && styles.doneText,
+                    ]}
+                >
                     {todo.todo}
                 </Text>
 
@@ -59,7 +58,9 @@ export default function TaskDetailsScreen() {
                 <Text
                     style={[
                         styles.status,
-                        todo.completed ? styles.done : styles.pending,
+                        todo.completed
+                            ? styles.completed
+                            : styles.pending,
                     ]}
                 >
                     {todo.completed ? "Completed" : "Pending"}
@@ -67,35 +68,44 @@ export default function TaskDetailsScreen() {
 
                 <View style={styles.divider} />
 
-                <Text style={styles.label}>Task ID</Text>
+                <Text style={styles.label}>ID</Text>
                 <Text style={styles.info}>{todo.id}</Text>
-
-                <Text style={styles.label}>User ID</Text>
-                <Text style={styles.info}>{todo.userId}</Text>
             </View>
 
-            <View style={styles.actions}>
-                <Pressable
-                    onPress={toggleStatus}
-                    style={[
-                        styles.toggleButton,
-                        todo.completed ? styles.doneBtn : styles.pendingBtn,
-                    ]}
-                >
-                    <Text style={styles.toggleText}>
-                        {todo.completed
-                            ? "✓ Mark as Pending"
-                            : "○ Mark as Completed"}
-                    </Text>
-                </Pressable>
+            {/* 🔥 CHANGE STATUS BUTTON (IMPORTANT) */}
+            <Pressable
+                onPress={toggleStatus}
+                style={[
+                    styles.statusBtn,
+                    todo.completed
+                        ? styles.doneBtn
+                        : styles.pendingBtn,
+                ]}
+            >
+                <Text style={styles.btnText}>
+                    {todo.completed
+                        ? "Mark as Pending"
+                        : "Mark as Completed"}
+                </Text>
+            </Pressable>
 
-                <Pressable
-                    style={styles.editButton}
-                    onPress={() => router.push(`/edit-task?id=${todo.id}`)}
-                >
-                    <Text style={styles.editText}>Edit Task</Text>
-                </Pressable>
-            </View>
+            {/* Edit */}
+            <Pressable
+                style={styles.editBtn}
+                onPress={() =>
+                    router.push(`/edit-task?id=${todo.id}`)
+                }
+            >
+                <Text style={styles.btnText}>Edit Task</Text>
+            </Pressable>
+
+            {/* Back */}
+            <Pressable
+                style={styles.backBtn}
+                onPress={() => router.back()}
+            >
+                <Text style={styles.btnText}>Back</Text>
+            </Pressable>
         </SafeAreaView>
     );
 }
@@ -121,9 +131,9 @@ const styles = StyleSheet.create({
     },
 
     card: {
-        backgroundColor: "#FFFFFF",
-        borderRadius: 20,
+        backgroundColor: "#fff",
         padding: 20,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: "#E5E7EB",
     },
@@ -135,21 +145,15 @@ const styles = StyleSheet.create({
         fontWeight: "600",
     },
 
-    taskText: {
+    task: {
         fontSize: 18,
         fontWeight: "800",
         color: "#111827",
     },
 
-    completedTask: {
+    doneText: {
         textDecorationLine: "line-through",
         color: "#9CA3AF",
-    },
-
-    divider: {
-        height: 1,
-        backgroundColor: "#E5E7EB",
-        marginVertical: 14,
     },
 
     status: {
@@ -157,7 +161,7 @@ const styles = StyleSheet.create({
         fontWeight: "800",
     },
 
-    done: {
+    completed: {
         color: "#16A34A",
     },
 
@@ -169,16 +173,18 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: "600",
         color: "#374151",
-        marginBottom: 8,
     },
 
-    actions: {
-        marginTop: 20,
-        gap: 12,
+    divider: {
+        height: 1,
+        backgroundColor: "#E5E7EB",
+        marginVertical: 12,
     },
 
-    toggleButton: {
-        padding: 14,
+    // 🔥 IMPORTANT BUTTON
+    statusBtn: {
+        marginTop: 15,
+        padding: 15,
         borderRadius: 14,
         alignItems: "center",
     },
@@ -191,20 +197,24 @@ const styles = StyleSheet.create({
         backgroundColor: "#2563EB",
     },
 
-    toggleText: {
-        color: "#FFFFFF",
-        fontWeight: "800",
-    },
-
-    editButton: {
+    editBtn: {
+        marginTop: 10,
         backgroundColor: "#111827",
-        padding: 14,
+        padding: 15,
         borderRadius: 14,
         alignItems: "center",
     },
 
-    editText: {
-        color: "#FFFFFF",
+    backBtn: {
+        marginTop: 10,
+        backgroundColor: "#6B7280",
+        padding: 15,
+        borderRadius: 14,
+        alignItems: "center",
+    },
+
+    btnText: {
+        color: "#fff",
         fontWeight: "800",
     },
-}); 
+});
