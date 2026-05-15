@@ -1,65 +1,53 @@
-import axiosInstance from '@/api/ApiBase';
-import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React from 'react';
+
 import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
   View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  Pressable,
 } from 'react-native';
+
+import {
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
+
+import { Ionicons } from '@expo/vector-icons';
+
+import { useTasks } from '@/hooks/useTasks';
+
+import ScreenContainer from '@/components/ui/ScreenContainer';
+import PageHeader from '@/components/ui/PageHeader';
+import SectionCard from '@/components/ui/SectionCard';
+import CustomButton from '@/components/ui/CustomButton';
 
 type Task = {
   id: number;
   title: string;
-  description: string;
-  dueDate: string;
-  priority: 'high' | 'medium' | 'low';
-  status: 'pending' | 'completed';
-};
+  description?: string;
+  status: string;
+  priority: string;
+  dueDate?: string;
 
-const PRIORITY_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  high: { bg: '#FEE2E2', text: '#DC2626', label: 'High' },
-  medium: { bg: '#FEF3C7', text: '#B45309', label: 'Medium' },
-  low: { bg: '#DCFCE7', text: '#15803D', label: 'Low' },
-};
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  completed: { bg: '#DCFCE7', text: '#15803D' },
-  pending: { bg: '#EDE9FE', text: '#6D28D9' },
+  latitude?: number;
+  longitude?: number;
 };
 
 export default function TaskDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+
   const router = useRouter();
 
-  const [task, setTask] = useState<Task | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: tasks, isLoading } = useTasks();
 
-  const fetchTask = useCallback(async () => {
-    try {
-      const response = await axiosInstance.get(`/tasks/${id}`); // ← التغيير هون
-      setTask(response.data);
-    } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to load task details');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useFocusEffect(
-    useCallback(() => {
-      setLoading(true);
-      fetchTask();
-    }, [fetchTask])
+  const task = tasks?.find(
+    (task: Task) => task.id === Number(id)
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <View style={styles.centered}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#6D5DF6" />
       </View>
     );
@@ -67,249 +55,142 @@ export default function TaskDetailsScreen() {
 
   if (!task) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Task not found</Text>
+      <View style={styles.loadingContainer}>
+        <Text>Task not found</Text>
       </View>
     );
   }
 
-  const priority = PRIORITY_COLORS[task.priority] ?? PRIORITY_COLORS.medium;
-  const status = STATUS_COLORS[task.status] ?? STATUS_COLORS.pending;
-
-  const formattedDate = task.dueDate
-    ? new Date(task.dueDate).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      })
-    : 'No due date';
-
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+    <ScreenContainer>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton}>
-          <Text style={styles.backArrow}>←</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Task Details</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* Title */}
-      <View style={styles.titleCard}>
-        <Text style={styles.taskTitle}>{task.title}</Text>
-        <View style={[styles.badge, { backgroundColor: status.bg }]}>
-          <Text style={[styles.badgeText, { color: status.text }]}>
-            {task.status}
-          </Text>
-        </View>
-      </View>
-
-      {/* Info */}
-      <View style={styles.section}>
-
-        {/* Due Date */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>📅 Due Date</Text>
-          <Text style={styles.infoValue}>{formattedDate}</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Priority */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>🚦 Priority</Text>
-          <View style={[styles.priorityBadge, { backgroundColor: priority.bg }]}>
-            <Text style={[styles.priorityText, { color: priority.text }]}>
-              {priority.label}
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.divider} />
-
-        {/* Description */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabel}>📝 Description</Text>
-          <Text style={styles.descriptionText}>
-            {task.description || 'No description provided.'}
-          </Text>
-        </View>
-
-      </View>
-
-      {/* Edit Button */}
       <Pressable
-        style={styles.editButton}
-        onPress={() => router.push(`/EditTask?id=${task.id}`)}
+        style={styles.backButton}
+        onPress={() => router.back()}
       >
-        <Text style={styles.editButtonText}>✏️ Edit Task</Text>
+        <Ionicons name="arrow-back" size={24} color="#111827" />
       </Pressable>
 
-    </ScrollView>
+      <PageHeader title="Task Details" />
+
+      <SectionCard>
+        <Text style={styles.taskTitle}>{task.title}</Text>
+
+        <View style={styles.badgeRow}>
+          <View style={styles.statusBadge}>
+            <Text style={styles.badgeText}>{task.status}</Text>
+          </View>
+
+          <View style={styles.priorityBadge}>
+            <Text style={styles.badgeText}>{task.priority}</Text>
+          </View>
+        </View>
+      </SectionCard>
+
+      {/* Description */}
+      <SectionCard>
+        <Text style={styles.infoLabel}>Description</Text>
+        <Text style={styles.infoText}>
+          {task.description || 'No description'}
+        </Text>
+      </SectionCard>
+
+      <SectionCard>
+        <Text style={styles.infoLabel}>Due Date</Text>
+        <Text style={styles.infoText}>
+          {task.dueDate
+            ? new Date(task.dueDate).toDateString()
+            : 'No due date'}
+        </Text>
+      </SectionCard>
+
+      <SectionCard>
+        <Text style={styles.infoLabel}>Location</Text>
+
+        {task.latitude != null && task.longitude != null ? (
+          <Text style={styles.infoText}>
+            📍 {task.latitude.toFixed(4)}, {task.longitude.toFixed(4)}
+          </Text>
+        ) : (
+          <Text style={styles.infoText}>
+            No location available
+          </Text>
+        )}
+      </SectionCard>
+
+      <CustomButton
+        title="Edit Task"
+        onPress={() =>
+          router.push(`/EditTask?id=${task.id}`)
+        }
+      />
+
+    </ScreenContainer>
   );
 }
-
 const styles = StyleSheet.create({
-  scroll: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  centered: {
+  loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
   },
-  errorText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-    marginTop: 8,
-  },
+
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.05,
     shadowRadius: 6,
     elevation: 2,
   },
-  backArrow: {
-    fontSize: 20,
-    color: '#111827',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#111827',
-  },
-  titleCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#EEF2F7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-    borderLeftWidth: 5,
-    borderLeftColor: '#6D5DF6',
-  },
-  titleRow: {
-    gap: 10,
-  },
+
   taskTitle: {
     fontSize: 22,
-    fontWeight: '800',
-    color: '#111827',
-    lineHeight: 30,
-  },
-  badge: {
-    alignSelf: 'flex-start',
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    marginTop: 4,
-  },
-  badgeText: {
-    fontSize: 12,
     fontWeight: '700',
-  },
-  section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 6,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#EEF2F7',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 14,
-    gap: 14,
-  },
-  infoIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoIcon: {
-    fontSize: 18,
-  },
-  infoContent: {
-    flex: 1,
-    gap: 4,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: '#9CA3AF',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  infoValue: {
-    fontSize: 15,
     color: '#111827',
-    fontWeight: '600',
+    marginBottom: 12,
   },
-  descriptionText: {
-    fontSize: 15,
-    color: '#374151',
-    lineHeight: 22,
+
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 10,
   },
-  priorityBadge: {
-    alignSelf: 'flex-start',
-    paddingVertical: 5,
+
+  statusBadge: {
+    backgroundColor: '#DDD6FE',
     paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 999,
   },
-  priorityText: {
+
+  priorityBadge: {
+    backgroundColor: '#FDE68A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  badgeText: {
+    fontWeight: '700',
+    color: '#111827',
+  },
+
+  infoLabel: {
     fontSize: 13,
     fontWeight: '700',
+    color: '#6B7280',
+    marginBottom: 6,
   },
-  divider: {
-    height: 1,
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 14,
-  },
-  editButton: {
-    backgroundColor: '#6D5DF6',
-    padding: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  editButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+
+  infoText: {
+    fontSize: 15,
+    color: '#111827',
+    lineHeight: 22,
   },
 });

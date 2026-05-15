@@ -19,7 +19,6 @@ export const deleteCurrentUser = async () => {
   return await Api.delete('/users/me');
 };
 
-// ─── Users ───────────────────────────────────────────
 export const getUserById = async (userId: string) => {
   return await Api.get(`/users/${userId}`);
 };

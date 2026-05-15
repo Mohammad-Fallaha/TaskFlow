@@ -31,6 +31,16 @@ const Task = sequelize.define('Task', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+
+  latitude: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+  },
+
+  longitude: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+  },
 });
 
 module.exports = Task;

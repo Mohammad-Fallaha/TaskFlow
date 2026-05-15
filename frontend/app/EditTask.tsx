@@ -1,254 +1,225 @@
-import axiosInstance from '@/api/ApiBase';
-import { updateTask } from '@/services/taskApi';
-import { useQueryClient } from '@tanstack/react-query';
-import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import DateTimePicker from '@react-native-community/datetimepicker';
+
 import {
-  Alert,
-  Platform,
-  Pressable,
-  StyleSheet,
   Text,
-  TextInput,
-  View,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Pressable,
 } from 'react-native';
+
+import { Ionicons } from '@expo/vector-icons';
+
+import { useForm } from 'react-hook-form';
+
 import { Picker } from '@react-native-picker/picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  useLocalSearchParams,
+  useRouter,
+} from 'expo-router';
+
+import { FormInput } from '@/components/ui/FormInput';
+import ScreenContainer from '@/components/ui/ScreenContainer';
+import PageHeader from '@/components/ui/PageHeader';
+import SectionCard from '@/components/ui/SectionCard';
+import CustomButton from '@/components/ui/CustomButton';
+
+import { useTaskMutations } from '@/hooks/useTaskMutations';
+
+import { useQuery } from '@tanstack/react-query';
+import { getTaskById } from '@/services/taskApi';
 
 type FormData = {
   taskTitle: string;
   taskDescription: string;
-  dueDate: string;
-  priority: string;
-  status: string;
 };
 
 export default function EditTaskScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+
+  const params = useLocalSearchParams();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const id =
+    typeof params.id === 'string'
+      ? params.id
+      : Array.isArray(params.id)
+        ? params.id[0]
+        : '';
 
-  const { control, handleSubmit, setValue } = useForm<FormData>({
-    defaultValues: {
-      taskTitle: '',
-      taskDescription: '',
-      dueDate: '',
-      priority: 'low',
-      status: 'pending',
-    },
+  const { update } = useTaskMutations();
+
+  const { control, handleSubmit, setValue } =
+    useForm<FormData>();
+
+  const [priority, setPriority] =
+    useState('medium');
+
+  const [status, setStatus] =
+    useState('pending');
+
+  const {
+    data: task,
+    isLoading,
+  } = useQuery({
+    queryKey: ['task', id],
+    queryFn: () => getTaskById(id),
+    enabled: !!id,
   });
 
   useEffect(() => {
-    fetchTask();
-  }, [id]);
+    if (!task) return;
 
-  const fetchTask = async () => {
-    try {
-      const response = await axiosInstance.get(`/tasks/${id}`);
-      const task = response.data;
-      setValue('taskTitle', task.title);
-      setValue('taskDescription', task.description);
-      setValue('dueDate', task.dueDate);
-      setValue('priority', task.priority);
-      setValue('status', task.status);
+    setValue('taskTitle', task.title ?? '');
+    setValue('taskDescription', task.description ?? '');
 
-      if (task.dueDate) {
-        setSelectedDate(new Date(task.dueDate));
-      }
-    } catch (error) {
-      console.error('Error fetching task:', error);
-      Alert.alert('Error', 'Failed to load task details');
-    }
-  };
+    setPriority(task.priority ?? 'medium');
+    setStatus(task.status ?? 'pending');
+
+  }, [task, setValue]);
 
   const onSubmit = async (data: FormData) => {
     try {
-      // ← map الأسماء الصح قبل الإرسال
-      const payload = {
-        title: data.taskTitle,
-        description: data.taskDescription,
-        dueDate: data.dueDate,
-        priority: data.priority,
-        status: data.status,
-      };
 
-      await updateTask(id, payload);
-      await queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      Alert.alert('Success', 'Task updated successfully');
+      if (!id) return;
+
+      await update.mutateAsync({
+        id,
+        data: {
+          title: data.taskTitle,
+          description: data.taskDescription,
+          priority,
+          status,
+        },
+      });
+
+      Alert.alert(
+        'Success',
+        'Task updated successfully'
+      );
+
       router.back();
+
     } catch (error) {
-      console.error(error);
-      Alert.alert('Error', 'Failed to update task');
+      console.log(error);
+
+      Alert.alert(
+        'Error',
+        'Failed to update task'
+      );
     }
   };
 
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  if (isLoading) {
+    return (
+      <ScreenContainer>
+        <ActivityIndicator size="large" color="#6D5DF6" />
+      </ScreenContainer>
+    );
+  }
+
+  if (!task) {
+    return (
+      <ScreenContainer>
+        <Text>Task not found</Text>
+      </ScreenContainer>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Edit Task</Text>
+    <ScreenContainer>
 
-      {/* Task Title */}
-      <Controller
-        control={control}
-        name="taskTitle"
-        rules={{ required: 'Task title is required' }}
-        render={({ field: { onChange, value }, fieldState: { error } }) => (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="Task Title"
-              value={value}
-              onChangeText={onChange}
-            />
-            {error && <Text style={styles.error}>{error.message}</Text>}
-          </>
-        )}
-      />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+      >
 
-      {/* Task Description */}
-      <Controller
-        control={control}
-        name="taskDescription"
-        render={({ field: { onChange, value } }) => (
-          <TextInput
-            style={styles.input}
-            placeholder="Task Description"
-            value={value}
-            onChangeText={onChange}
+        <Pressable
+          onPress={() => router.back()}
+          style={styles.backButton}
+        >
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color="#111827"
           />
-        )}
-      />
+        </Pressable>
 
-      {/* Due Date */}
-      <Controller
-        control={control}
-        name="dueDate"
-        render={({ field: { value } }) => (
-          <View>
-            <Pressable
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.dateButtonText}>
-                📅 {value ? formatDate(new Date(value)) : 'Select Due Date'}
-              </Text>
-            </Pressable>
+        <PageHeader title="Edit Task" />
 
-            {showDatePicker && (
-              <DateTimePicker
-                value={selectedDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, date) => {
-                  setShowDatePicker(false);
-                  if (date) {
-                    setSelectedDate(date);
-                    setValue('dueDate', date.toISOString());
-                  }
-                }}
-              />
-            )}
-          </View>
-        )}
-      />
+        <SectionCard>
 
-      {/* Priority */}
-      <Controller
-        control={control}
-        name="priority"
-        render={({ field: { onChange, value } }) => (
+          <FormInput
+            name="taskTitle"
+            control={control}
+            label="Task Title"
+          />
+
+          <FormInput
+            name="taskDescription"
+            control={control}
+            label="Description"
+            multiline
+          />
+
+          <Text style={styles.label}>Priority</Text>
+
           <Picker
-            style={styles.input}
-            selectedValue={value}
-            onValueChange={onChange}
+            selectedValue={priority}
+            onValueChange={setPriority}
           >
-            <Picker.Item label="Low" value="low" />
-            <Picker.Item label="Medium" value="medium" />
             <Picker.Item label="High" value="high" />
+            <Picker.Item label="Medium" value="medium" />
+            <Picker.Item label="Low" value="low" />
           </Picker>
-        )}
-      />
 
-      {/* Status */}
-      <Controller
-        control={control}
-        name="status"
-        render={({ field: { onChange, value } }) => (
+          <Text style={styles.label}>Status</Text>
+
           <Picker
-            style={styles.input}
-            selectedValue={value}
-            onValueChange={onChange}
+            selectedValue={status}
+            onValueChange={setStatus}
           >
             <Picker.Item label="Pending" value="pending" />
             <Picker.Item label="Completed" value="completed" />
           </Picker>
-        )}
-      />
 
-      <Pressable style={styles.button} onPress={handleSubmit(onSubmit)}>
-        <Text style={styles.buttonText}>Save Changes</Text>
-      </Pressable>
-    </SafeAreaView>
+          <CustomButton
+            title="Save Changes"
+            onPress={handleSubmit(onSubmit)}
+          />
+
+        </SectionCard>
+
+      </ScrollView>
+
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
+
+  backButton: {
+    alignSelf: 'flex-start',
+    marginBottom: 10,
+
+    backgroundColor: '#fff',
     padding: 10,
-    marginBottom: 15,
+    borderRadius: 12,
+
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  dateButton: {
-    borderWidth: 1,
-    borderColor: '#6D5DF6',
-    borderRadius: 5,
-    padding: 12,
-    marginBottom: 15,
-    backgroundColor: '#F5F3FF',
-  },
-  dateButtonText: {
-    color: '#6D5DF6',
+
+  label: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  button: {
-    backgroundColor: '#6D5DF6',
-    padding: 15,
-    borderRadius: 5,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  error: {
-    color: 'red',
-    marginBottom: 10,
+    marginTop: 10,
+    marginBottom: 8,
+    color: '#374151',
   },
 });
