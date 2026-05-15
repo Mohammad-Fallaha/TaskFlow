@@ -1,53 +1,56 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuth } from 'firebase/auth';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'http://192.168.1.109:5000/api';
 
 const handleError = (error: any) => {
   if (error?.response?.status === 401) {
-    console.error('Unauthorized');
+    console.error('Unauthorized - Token expired or missing');
   } else if (error?.response?.status === 403) {
     console.error('Forbidden');
   } else if (error?.response?.status === 500) {
     console.error('Internal Server Error');
   } else {
-    console.error(error);
+    console.error('API Error:', error);
   }
 
   return Promise.reject(error);
 };
+
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000,
 });
 
+
 axiosInstance.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem('token');
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
 
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      if (user) {
+        // 🔥 Always get fresh token
+        const token = await user.getIdToken();
+
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+
+      config.headers['Content-Type'] = 'application/json';
+
+      return config;
+    } catch (err) {
+      console.error('Token Error:', err);
+      return config;
     }
-
-    config.headers['Content-Type'] = 'application/json';
-
-    return config;
   },
-
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 axiosInstance.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-
-  (error) => {
-    return handleError(error);
-  }
+  (response) => response,
+  (error) => handleError(error)
 );
 
 export default axiosInstance;

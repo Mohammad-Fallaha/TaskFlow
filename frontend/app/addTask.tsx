@@ -1,224 +1,293 @@
-import { createTask } from '@/services/taskApi';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
-import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import * as Location from 'expo-location';
 import {
-  Alert,
-  Platform,
+  Text,
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
+  Alert,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useQueryClient } from '@tanstack/react-query';
-import { auth } from '@/services/authService';
+
+import { Ionicons } from '@expo/vector-icons';
+
+import { useForm } from 'react-hook-form';
+
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+import { Picker } from '@react-native-picker/picker';
+
+import { useRouter } from 'expo-router';
+
+import { FormInput } from '@/components/ui/FormInput';
+
+import { useTaskMutations } from '@/hooks/useTaskMutations';
+
+import ScreenContainer from '@/components/ui/ScreenContainer';
+
+import PageHeader from '@/components/ui/PageHeader';
+
+import CustomButton from '@/components/ui/CustomButton';
+
+import SectionCard from '@/components/ui/SectionCard';
+import { auth } from "@/config/firebase";
+
 type FormData = {
   taskTitle: string;
   taskDescription: string;
-  dueDate: Date;
-  priority: 'high' | 'medium' | 'low';
 };
 
 export default function AddTaskScreen() {
-  const { control, handleSubmit } = useForm<FormData>({
-    defaultValues: {
-      taskTitle: '',
-      taskDescription: '',
-      dueDate: new Date(),
-      priority: 'medium',
-    },
-  });
+  const {
+    control,
+    handleSubmit,
+    reset,
+  } = useForm<FormData>();
 
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  const [showPicker, setShowPicker] = useState(false);
+  const { create } =
+    useTaskMutations();
 
-  const onSubmit = async (data: FormData) => {
-    try {
-      const user = auth.currentUser;
-      const formattedData = {
-        title: data.taskTitle,
-        description: data.taskDescription,
-        status: 'pending',
-        priority: data.priority,
-        dueDate: data.dueDate,
-      userId: auth.currentUser?.uid || '',
-      };
+  const [date, setDate] =
+    useState(new Date());
 
-      const newTask = await createTask(formattedData);
+  const [showDate, setShowDate] =
+    useState(false);
 
-      console.log("CREATED TASK:", newTask);
-      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  const [priority, setPriority] =
+    useState('medium');
+const getLocation = async () => {
+  const { status } =
+    await Location.requestForegroundPermissionsAsync();
 
-      Alert.alert('Success', 'Task added successfully');
+  if (status !== 'granted') {
+    return null; // بدل crash
+  }
 
-      router.push({ pathname: '/TaskDetales', params: { id: `${newTask.id}` } });
+  const location =
+    await Location.getCurrentPositionAsync({});
 
-    } catch (error) {
-      console.log(error);
-      Alert.alert('Error', 'Failed to add task');
-    }
+  return {
+    latitude: location.coords.latitude,
+    longitude: location.coords.longitude,
   };
+};
+const onSubmit = async (data: FormData) => {
+  try {
+    const location = await getLocation();
 
+    await create.mutateAsync({
+      title: data.taskTitle,
+      description: data.taskDescription,
+      dueDate: date,
+      priority,
+      status: 'pending',
+      userId: auth.currentUser?.uid,
+
+      ...(location && {
+        latitude: location.latitude,
+        longitude: location.longitude,
+      }),
+    });
+
+    Alert.alert('Success', 'Task created successfully');
+
+    reset();
+    router.back();
+
+  } catch (error) {
+    console.log(error);
+    Alert.alert('Error', 'Failed to create task');
+  }
+};
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Add Task</Text>
-
-      {/* Task Title */}
-      <Controller
-        control={control}
-        name="taskTitle"
-        rules={{ required: 'Task title is required' }}
-        render={({ field: { onChange, value }, fieldState: { error } }) => (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="Task Title"
-              value={value}
-              onChangeText={onChange}
-            />
-
-            {error && (
-              <Text style={styles.error}>{error.message}</Text>
-            )}
-          </>
-        )}
-      />
-
-      {/* Task Description */}
-      <Controller
-        control={control}
-        name="taskDescription"
-        render={({ field: { onChange, value } }) => (
-          <TextInput
-            style={styles.input}
-            placeholder="Task Description"
-            value={value}
-            onChangeText={onChange}
-            multiline
-          />
-        )}
-      />
-
-      {/* Due Date */}
-      <Controller
-        control={control}
-        name="dueDate"
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Pressable
-              onPress={() => setShowPicker(true)}
-              style={styles.input}
-            >
-              <Text>{value.toDateString()}</Text>
-            </Pressable>
-
-            {showPicker && (
-              <DateTimePicker
-                value={value}
-                mode="date"
-                display="default"
-                onChange={(event, selectedDate) => {
-                  setShowPicker(Platform.OS === 'ios');
-
-                  if (selectedDate) {
-                    onChange(selectedDate);
-                  }
-                }}
-              />
-            )}
-          </>
-        )}
-      />
-
-      {/* Priority */}
-      <Controller
-        control={control}
-        name="priority"
-        render={({ field: { onChange, value } }) => (
-          <>
-            <Text style={styles.label}>Select Priority:</Text>
-
-            <Picker
-              selectedValue={value}
-              onValueChange={onChange}
-              style={styles.picker}
-            >
-              <Picker.Item label="High" value="high" />
-              <Picker.Item label="Medium" value="medium" />
-              <Picker.Item label="Low" value="low" />
-            </Picker>
-          </>
-        )}
-      />
+    <ScreenContainer>
 
       <Pressable
-        style={styles.button}
-        onPress={handleSubmit(onSubmit)}
+        style={styles.backButton}
+        onPress={() => router.back()}
       >
-        <Text style={styles.buttonText}>Add Task</Text>
+        <Ionicons
+          name="arrow-back"
+          size={24}
+          color="#111827"
+        />
       </Pressable>
-    </SafeAreaView>
+
+      <PageHeader
+        title="Create Task"
+        subtitle="Organize your work and stay productive"
+      />
+
+      <SectionCard>
+
+        <FormInput
+          name="taskTitle"
+          control={control}
+          label="Task Title"
+          placeholder="Enter task title"
+          rules={{
+            required:
+              'Task title is required',
+          }}
+        />
+
+        <FormInput
+          name="taskDescription"
+          control={control}
+          label="Description"
+          placeholder="Enter task description"
+          multiline
+        />
+
+        <Text style={styles.label}>
+          Due Date
+        </Text>
+
+        <Pressable
+          style={styles.dateButton}
+          onPress={() =>
+            setShowDate(true)
+          }
+        >
+          <Text style={styles.dateText}>
+            📅 {date.toDateString()}
+          </Text>
+        </Pressable>
+
+        {showDate && (
+          <DateTimePicker
+            value={date}
+            mode="date"
+            display="default"
+            onChange={(
+              event,
+              selectedDate
+            ) => {
+
+              setShowDate(false);
+
+              if (selectedDate) {
+                setDate(selectedDate);
+              }
+            }}
+          />
+        )}
+
+        <Text style={styles.label}>
+          Priority
+        </Text>
+
+        <View style={styles.pickerWrapper}>
+
+          <Picker
+            selectedValue={priority}
+            onValueChange={setPriority}
+            style={styles.picker}
+          >
+
+            <Picker.Item
+              label=" High"
+              value="high"
+            />
+
+            <Picker.Item
+              label=" Medium"
+              value="medium"
+            />
+
+            <Picker.Item
+              label=" Low"
+              value="low"
+            />
+
+          </Picker>
+
+        </View>
+
+        <CustomButton
+          title="Create Task"
+          onPress={handleSubmit(
+            onSubmit
+          )}
+        />
+
+      </SectionCard>
+
+    </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+
+  backButton: {
+    width: 42,
+    height: 42,
+
+    borderRadius: 14,
+
+    backgroundColor: '#FFFFFF',
+
     justifyContent: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-  },
-
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 25,
-    textAlign: 'center',
-    color: '#111827',
-  },
-
-  input: {
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 15,
-    backgroundColor: '#F9FAFB',
-  },
-
-  button: {
-    backgroundColor: '#3B82F6',
-    padding: 16,
-    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 10,
-  },
 
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    marginBottom: 12,
+
+    shadowColor: '#000',
+
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+
+    elevation: 2,
   },
 
   label: {
-    fontSize: 16,
-    marginBottom: 6,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#374151',
+    marginBottom: 8,
   },
 
-  picker: {
-    height: 50,
+  dateButton: {
+    backgroundColor: '#FFFFFF',
+
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+
+    borderRadius: 16,
+
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+
     marginBottom: 20,
   },
 
-  error: {
-    color: 'red',
-    marginBottom: 10,
+  dateText: {
+    color: '#111827',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+
+  pickerWrapper: {
+    backgroundColor: '#FFFFFF',
+
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+
+    borderRadius: 16,
+
+    overflow: 'hidden',
+
+    marginBottom: 24,
+  },
+
+  picker: {
+    height: 55,
+    width: '100%',
   },
 });

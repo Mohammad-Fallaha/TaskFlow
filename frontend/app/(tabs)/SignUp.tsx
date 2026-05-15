@@ -1,9 +1,16 @@
-import { useRouter } from 'expo-router';
-import React from 'react';
-import { Controller, useForm } from 'react-hook-form';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { auth } from '@/config/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { useRouter } from "expo-router";
+import React from "react";
+import { Controller, useForm } from "react-hook-form";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { auth } from "@/config/firebase";
+import { createUserWithEmailAndPassword } from "firebase/auth";
 
 type FormData = {
   email: string;
@@ -12,28 +19,41 @@ type FormData = {
 
 export default function SignUp() {
   const router = useRouter();
+
   const { control, handleSubmit } = useForm<FormData>({
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: "", password: "" },
   });
 
-  const handelonSignUp = async (data: FormData) => {
+  const onSignUp = async (data: FormData) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      console.log('User signed up successfully:', userCredential.user);
-      router.replace('/(tabs)/login');
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        data.email,
+        data.password
+      );
+
+      console.log("User signed up:", userCredential.user);
+
+      Alert.alert("Success", "Account created successfully");
+
+      router.replace("/(tabs)/login");
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Unable to sign up.');
+      Alert.alert("Error", error.message || "Unable to sign up.");
     }
   };
 
   return (
     <View style={styles.container}>
+      <Pressable style={styles.backButton} onPress={() => router.push("/(tabs)/login")}>
+        <Text style={styles.backText}>← Login</Text>
+      </Pressable>
+
       <Text style={styles.title}>Sign Up</Text>
 
       <Controller
         control={control}
         name="email"
-        rules={{ required: 'Email is required' }}
+        rules={{ required: "Email is required" }}
         render={({ field: { onChange, value }, fieldState: { error } }) => (
           <>
             <TextInput
@@ -52,7 +72,13 @@ export default function SignUp() {
       <Controller
         control={control}
         name="password"
-        rules={{ required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } }}
+        rules={{
+          required: "Password is required",
+          minLength: {
+            value: 6,
+            message: "Password must be at least 6 characters",
+          },
+        }}
         render={({ field: { onChange, value }, fieldState: { error } }) => (
           <>
             <TextInput
@@ -67,7 +93,7 @@ export default function SignUp() {
         )}
       />
 
-      <Pressable style={styles.button} onPress={handleSubmit(handelonSignUp)}>
+      <Pressable style={styles.button} onPress={handleSubmit(onSignUp)}>
         <Text style={styles.buttonText}>Sign Up</Text>
       </Pressable>
     </View>
@@ -75,10 +101,56 @@ export default function SignUp() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', paddingHorizontal: 20 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  input: { height: 40, borderColor: 'gray', borderWidth: 1, marginBottom: 8, paddingHorizontal: 10, borderRadius: 5 },
-  button: { backgroundColor: '#007bff', padding: 12, borderRadius: 4, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  error: { color: 'red', marginBottom: 8, fontSize: 12 },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+
+  backButton: {
+    position: "absolute",
+    top: 50,
+    left: 20,
+  },
+  backText: {
+    fontSize: 16,
+    color: "#007bff",
+    fontWeight: "bold",
+  },
+
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+
+  input: {
+    height: 40,
+    borderColor: "gray",
+    borderWidth: 1,
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    borderRadius: 5,
+  },
+
+  button: {
+    backgroundColor: "#007bff",
+    padding: 12,
+    borderRadius: 4,
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  error: {
+    color: "red",
+    marginBottom: 8,
+    fontSize: 12,
+  },
 });

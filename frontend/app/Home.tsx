@@ -51,7 +51,6 @@ export default function HomeScreen() {
 
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
-
       Alert.alert('Success', 'Task deleted successfully');
     },
 
@@ -140,8 +139,11 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       
-      <Pressable onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Logout</Text>
+      <Pressable
+        onPress={() => router.push('/profile')}
+        style={styles.logoutButton}
+      >
+        <Text style={styles.logoutText}>Profile</Text>
       </Pressable>
 
       <Text style={styles.title}>Task Dashboard</Text>
@@ -262,7 +264,7 @@ const styles = StyleSheet.create({
   },
 
   logoutButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#6D5DF6', 
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -332,8 +334,7 @@ const styles = StyleSheet.create({
   statDivider: {
     width: 1,
     height: 42,
-    backgroundColor:
-      'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
 
   searchInput: {
@@ -344,7 +345,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-
     fontSize: 15,
     color: '#111827',
   },
