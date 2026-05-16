@@ -34,7 +34,7 @@ export default function TabsLayout() {
     if (loading) return;
 
     if (user) {
-      router.replace('/profile');
+      router.replace('/Home');
     } else {
       router.replace('/login');
     }

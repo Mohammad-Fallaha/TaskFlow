@@ -11,6 +11,7 @@ import {
 import { getAuth, signOut } from 'firebase/auth';
 import { router } from 'expo-router';
 import { getUser } from '@/db/user';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Profile() {
   const [user, setUser] = useState<any>(null);
@@ -20,7 +21,6 @@ export default function Profile() {
     const loadUser = async () => {
       try {
         const data = await getUser();
-
         const auth = getAuth();
         const currentUser = auth.currentUser;
 
@@ -36,7 +36,6 @@ export default function Profile() {
         }
       } catch (error) {
         console.log('SQLite error:', error);
-
         const auth = getAuth();
         const currentUser = auth.currentUser;
 
@@ -89,10 +88,17 @@ export default function Profile() {
     <View style={styles.container}>
 
       <Pressable
+        style={styles.homeButton}
+        onPress={() => router.replace('/Home')}
+      >
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </Pressable>
+
+      <Pressable
         style={styles.localButton}
         onPress={() => router.push('/LocalTasks')}
       >
-        <Text style={styles.localButtonText}> Local Tasks</Text>
+        <Text style={styles.localButtonText}>Local Tasks</Text>
       </Pressable>
 
       <View style={styles.avatar}>
@@ -133,6 +139,7 @@ export default function Profile() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -146,6 +153,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  homeButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    backgroundColor: '#6D5DF6',
+    padding: 10,
+    borderRadius: 12,
   },
 
   avatar: {
